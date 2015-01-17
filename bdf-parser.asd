@@ -2,8 +2,8 @@
   :description "Parser for Glyph BDF files"
   :depends-on (#:yacc)
   :components ((:file "package")
-               (:file "bdf-types"
+               (:file "types"
                       :depends-on ("package"))
-               (:file "bdf-parser"
+               (:file "parser"
                       :depends-on ("package"
-                                   "bdf-types"))))
+                                   "types"))))

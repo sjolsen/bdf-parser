@@ -1,16 +1,11 @@
 (in-package #:bdf-parser)
 
-(declaim (optimize (safety 3) (debug 3) (speed 0)))
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (unless (boundp '+keywords+)
     (defconstant +keywords+
       '(STARTFONT COMMENT CONTENTVERSION FONT SIZE FONTBOUNDINGBOX METRICSSET
         SWIDTH DWIDTH SWIDTH1 DWIDTH1 VVECTOR STARTPROPERTIES ENDPROPERTIES
         CHARS STARTCHAR ENCODING BBX BITMAP ENDCHAR ENDFONT))))
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (export +keywords+ '#:bdf-parser))
 
 
 ;;;; Lexing
