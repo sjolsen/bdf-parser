@@ -55,95 +55,100 @@
            ,@body))
       `(progn ,@body)))
 
+(defun getprop (key body)
+  (cdr (assoc key body)))
+
+(defun getprop* (key body)
+  (loop
+     for cell in body
+     when (eq key (car cell))
+       collect (cdr cell)))
+
+(defun parse-bdf (bdf-version body endfont)
+  (declare (ignore endfont))
+  (destructuring-bind (point-size xres yres) (getprop 'size body)
+    (make-instance 'font
+      :bdf-version     (cdr bdf-version)
+      :content-version (getprop  'contentversion body)
+      :name            (getprop  'font           body)
+      :comments        (getprop* 'comment        body)
+      :properties      (getprop  'properties     body)
+      :point-size      point-size
+      :x-resolution    xres
+      :y-resolution    yres
+      :direction       (ecase (getprop 'metricsset body)
+                         ((0 nil) :horizontal)
+                         ((1)     :vertical)
+                         ((2)     :both))
+      :metrics         (make-instance 'metrics
+                         :bounding-box           (getprop 'fontboundingbox body)
+                         :scalable-step          (getprop 'swidth  body)
+                         :device-step            (getprop 'dwidth  body)
+                         :scalable-step-vertical (getprop 'swidth1 body)
+                         :device-step-vertical   (getprop 'dwidth1 body)
+                         :vvector                (getprop 'vvector body))
+      :glyphs          (coerce (getprop 'chars body) 'vector))))
+
+(defun parse-properties (startproperties properties endproperties)
+  (declare (ignore endproperties))
+  (let ((n (cdr startproperties)))
+    (when (/= n (length properties))
+      (warn "Unexpected number of properties"))
+    (cons 'properties properties)))
+
+(defun parse-chars (startchar chars)
+  (let ((n (cdr startchar)))
+    (when (/= n (length chars))
+      (warn "Unexpected number of glyphs"))
+    (cons 'chars chars)))
+
+(defun round-up (n m)
+  (* m (ceiling n m)))
+
+(defun parse-startchar (name body endchar)
+  (declare (ignore endchar))
+  (destructuring-bind (encoding1 &optional encoding2) (getprop 'encoding body)
+    (let ((bbx (getprop 'bbx body)))
+      (make-instance 'glyph
+        :name              (cdr name)
+        :encoding          (or encoding2 encoding1)
+        :standard-encoding (null encoding2)
+        :metrics           (make-instance 'metrics
+                             :bounding-box           bbx
+                             :scalable-step          (getprop 'swidth  body)
+                             :device-step            (getprop 'dwidth  body)
+                             :scalable-step-vertical (getprop 'swidth1 body)
+                             :device-step-vertical   (getprop 'dwidth1 body)
+                             :vvector                (getprop 'vvector body))
+        :bitmap            (let* ((bb-width  (width bbx))
+                                  (bb-height (height bbx))
+                                  (data      (getprop 'bitmap body))
+                                  (iwidth    (round-up bb-width 8)))
+                             (map `(vector (bit-vector ,bb-width) ,bb-height)
+                                  (lambda (num)
+                                    (setf num (ash num (- bb-width iwidth)))
+                                    (loop
+                                       with v = (make-array bb-width :element-type 'bit)
+                                       for i from (1- bb-width) downto 0
+                                       do (setf (aref v i) (logand num 1))
+                                       do (setf num (ash num -1))
+                                       finally (return v)))
+                                  data))))))
+
+(defun parse-bitmap (bitmap-line data)
+  (declare (ignore bitmap-line))
+  (cons 'bitmap data))
+
+(defun parse-hex (data newline)
+  (declare (ignore newline))
+  (parse-integer data :radix 16))
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
-  (defun getprop (key body)
-    (cdr (assoc key body)))
-
-  (defun getprop* (key body)
-    (loop
-       for cell in body
-       when (eq key (car cell))
-         collect (cdr cell)))
-
-  (defun parse-bdf (bdf-version body endfont)
-    (declare (ignore endfont))
-    (destructuring-bind (point-size xres yres) (getprop 'size body)
-      (make-instance 'font
-        :bdf-version     (cdr bdf-version)
-        :content-version (getprop  'contentversion body)
-        :name            (getprop  'font           body)
-        :comments        (getprop* 'comment        body)
-        :properties      (getprop  'properties     body)
-        :point-size      point-size
-        :x-resolution    xres
-        :y-resolution    yres
-        :direction       (ecase (getprop 'metricsset body)
-                           ((0 nil) :horizontal)
-                           ((1)     :vertical)
-                           ((2)     :both))
-        :metrics         (make-instance 'metrics
-                           :bounding-box           (getprop 'fontboundingbox body)
-                           :scalable-step          (getprop 'swidth  body)
-                           :device-step            (getprop 'dwidth  body)
-                           :scalable-step-vertical (getprop 'swidth1 body)
-                           :device-step-vertical   (getprop 'dwidth1 body)
-                           :vvector                (getprop 'vvector body))
-        :glyphs          (coerce (getprop 'chars body) 'vector))))
-
-  (defun parse-properties (startproperties properties endproperties)
-    (declare (ignore endproperties))
-    (let ((n (cdr startproperties)))
-      (when (/= n (length properties))
-        (warn "Unexpected number of properties"))
-      (cons 'properties properties)))
-
-  (defun parse-chars (startchar chars)
-    (let ((n (cdr startchar)))
-      (when (/= n (length chars))
-        (warn "Unexpected number of glyphs"))
-      (cons 'chars chars)))
-
-  (defun round-up (n m)
-    (* m (ceiling n m)))
-
-  (defun parse-startchar (name body endchar)
-    (declare (ignore endchar))
-    (destructuring-bind (encoding1 &optional encoding2) (getprop 'encoding body)
-      (let ((bbx (getprop 'bbx body)))
-        (make-instance 'glyph
-          :name              (cdr name)
-          :encoding          (or encoding2 encoding1)
-          :standard-encoding (null encoding2)
-          :metrics           (make-instance 'metrics
-                               :bounding-box           bbx
-                               :scalable-step          (getprop 'swidth  body)
-                               :device-step            (getprop 'dwidth  body)
-                               :scalable-step-vertical (getprop 'swidth1 body)
-                               :device-step-vertical   (getprop 'dwidth1 body)
-                               :vvector                (getprop 'vvector body))
-          :bitmap            (let* ((bb-width  (width bbx))
-                                    (bb-height (height bbx))
-                                    (data      (getprop 'bitmap body))
-                                    (iwidth    (round-up bb-width 8)))
-                               (map `(vector (bit-vector ,bb-width) ,bb-height)
-                                    (lambda (num)
-                                      (setf num (ash num (- bb-width iwidth)))
-                                      (loop
-                                         with v = (make-array bb-width :element-type 'bit)
-                                         for i from (1- bb-width) downto 0
-                                         do (setf (aref v i) (logand num 1))
-                                         do (setf num (ash num -1))
-                                         finally (return v)))
-                                    data))))))
-
-  (defun parse-bitmap (bitmap-line data)
-    (declare (ignore bitmap-line))
-    (cons 'bitmap data))
-
-  (defun parse-hex (data newline)
-    (declare (ignore newline))
-    (parse-integer data :radix 16))
+  (defmacro delay (f)
+    (let ((args (gensym "-ARGS")))
+      `(function (lambda (&rest ,args)
+                   (apply ,f ,args)))))
 
   (defun parse-line* (constructor &rest constructors)
     (lambda (keyword &rest args)
@@ -156,12 +161,13 @@
   (:start-symbol bdf)
   (:terminals #.(list* :newline :string +keywords+))
 
-  (bdf               (startfont-line       global-lines     endfont-line        #'parse-bdf))
-  (properties-block  (startproperties-line property-lines   endproperties-line  #'parse-properties))
-  (chars-block       (chars-line           startchar-blocks                     #'parse-chars))
-  (startchar-block   (startchar-line       charprop-lines   endchar-line        #'parse-startchar))
-  (bitmap-block      (bitmap-line          hex-lines                            #'parse-bitmap))
+  (bdf               (startfont-line       global-lines     endfont-line        (delay #'parse-bdf)))
+  (properties-block  (startproperties-line property-lines   endproperties-line  (delay #'parse-properties)))
+  (chars-block       (chars-line           startchar-blocks                     (delay #'parse-chars)))
+  (startchar-block   (startchar-line       charprop-lines   endchar-line        (delay #'parse-startchar)))
+  (bitmap-block      (bitmap-line          hex-lines                            (delay #'parse-bitmap)))
 
+  ;;                      KEYWORD         ARG1    ARG2    ARG3    ARG4                           CONSTRUCTOR          PARSER1         PARSER2         PARSER3         PARSER4
   (startfont-line        (STARTFONT       :string                         :newline  (parse-line                       #'identity)))
   (endfont-line          (ENDFONT                                         :newline))
   (comment-line          (COMMENT         :string                         :newline  (parse-line                       #'identity)))
@@ -181,11 +187,12 @@
   (chars-line            (CHARS           :string                         :newline  (parse-line                       #'parse-integer)))
   (startchar-line        (STARTCHAR       :string                         :newline  (parse-line                       #'identity)))
   (endchar-line          (ENDCHAR                                         :newline))
-  (encoding-line         (ENCODING        :string                         :newline  (parse-line* #'list #'parse-integer))
-                         (ENCODING        :string :string                 :newline  (parse-line* #'list #'parse-integer #'parse-integer)))
+  (encoding-line         (ENCODING        :string                         :newline  (parse-line* #'list               #'parse-integer))
+                         (ENCODING        :string :string                 :newline  (parse-line* #'list               #'parse-integer #'parse-integer)))
   (bbx-line              (BBX             :string :string :string :string :newline  (parse-line* #'make-bounding-box* #'parse-integer #'parse-integer #'parse-integer #'parse-integer)))
   (bitmap-line           (BITMAP                                          :newline))
-  (hex-line              (:string                                         :newline  #'parse-hex))
+
+  (hex-line              (:string                                         :newline  (delay #'parse-hex)))
 
   (global-line  comment-line
                 contentversion-line
