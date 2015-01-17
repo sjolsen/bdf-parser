@@ -38,31 +38,18 @@
                  :initarg  :bounding-box
                  :accessor bounding-box)
 
-   (scalable-width  :type     (maybe integer)
-                    :initarg  :scalable-width
-                    :accessor scalable-width)
-   (scalable-height :type     (maybe integer)
-                    :initarg  :scalable-height
-                    :accessor scalable-height)
-   (device-width    :type     (maybe integer)
-                    :initarg  :device-width
-                    :accessor device-width)
-   (device-height   :type     (maybe integer)
-                    :initarg  :device-height
-                    :accessor device-height)
-
-   (scalable-width-vertical  :type     (maybe integer)
-                             :initarg  :scalable-width-vertical
-                             :accessor scalable-width-vertical)
-   (scalable-height-vertical :type     (maybe integer)
-                             :initarg  :scalable-height-vertical
-                             :accessor scalable-height-vertical)
-   (device-width-vertical    :type     (maybe integer)
-                             :initarg  :device-width-vertical
-                             :accessor device-width-vertical)
-   (device-height-vertical   :type     (maybe integer)
-                             :initarg  :device-height-vertical
-                             :accessor device-height-vertical)
+   (scalable-step          :type (maybe offset)
+                           :initarg :scalable-step
+                           :accessor scalable-step)
+   (device-step            :type (maybe offset)
+                           :initarg :device-step
+                           :accessor device-step)
+   (scalable-step-vertical :type (maybe offset)
+                           :initarg :scalable-step-vertical
+                           :accessor scalable-step-vertical)
+   (device-step-vertical   :type (maybe offset)
+                           :initarg :device-step-vertical
+                           :accessor device-step-vertical)
 
    (vvector :type     (maybe offset)
             :initarg  :vvector
