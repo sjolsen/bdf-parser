@@ -17,6 +17,7 @@
 
 ;;;; Lexing
 
+;;; TODO: Accept strings with internal quotes
 (defun read-string (stream)
   (loop
      for c = (read-char stream nil :eof)
