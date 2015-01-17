@@ -71,7 +71,7 @@
             :initarg  :metrics
             :accessor metrics)
 
-   (bitmap :type     (vector bit-vector)
+   (bitmap :type     (array bit (* *))
            :initarg  :bitmap
            :accessor bitmap)))
 

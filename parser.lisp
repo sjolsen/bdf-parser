@@ -48,13 +48,6 @@
 
 ;;;; Parsing
 
-(defmacro destructuring-bind* (bindings &body body)
-  (if bindings
-      `(destructuring-bind ,(car bindings) ,(cadr bindings)
-         (destructuring-bind* ,(cddr bindings)
-           ,@body))
-      `(progn ,@body)))
-
 (defun getprop (key body)
   (cdr (assoc key body)))
 
@@ -124,16 +117,16 @@
                                   (bb-height (height bbx))
                                   (data      (getprop 'bitmap body))
                                   (iwidth    (round-up bb-width 8)))
-                             (map `(vector (bit-vector ,bb-width) ,bb-height)
-                                  (lambda (num)
-                                    (setf num (ash num (- bb-width iwidth)))
-                                    (loop
-                                       with v = (make-array bb-width :element-type 'bit)
-                                       for i from (1- bb-width) downto 0
-                                       do (setf (aref v i) (logand num 1))
-                                       do (setf num (ash num -1))
-                                       finally (return v)))
-                                  data))))))
+                             (loop
+                                with bitmap = (make-array (list bb-height bb-width) :element-type 'bit)
+                                for row from 0 below bb-height
+                                for raw-num in data
+                                do (loop
+                                      with num = (ash raw-num (- bb-width iwidth))
+                                      for col from (1- bb-width) downto 0
+                                      do (setf (aref bitmap row col) (logand num 1))
+                                      do (setf num (ash num -1)))
+                                finally (return bitmap)))))))
 
 (defun parse-bitmap (bitmap-line data)
   (declare (ignore bitmap-line))
