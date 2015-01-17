@@ -1,7 +1,3 @@
-(defpackage #:bdf-parser
-  (:use #:cl #:yacc)
-  (:export #:bdf-parse))
-
 (in-package #:bdf-parser)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -55,18 +51,38 @@
 
 ;;;; Parsing
 
-(defun first* (thing1 &rest rest)
-  (declare (ignore rest))
-  thing1)
-
-(defun *list (l1 &rest rest)
-  (append l1 rest))
-
-(defun *list-drop (l1 &rest rest)
-  (append l1 (butlast rest)))
-
-(defun droplast (&rest rest)
-  (butlast rest))
+(defun parse-bdf (bdf-version body endfont)
+  (declare (ignore endfont))
+  (labels ((getprop (key)
+             (cdr (assoc key body)))
+           (getprop* (key)
+             (loop
+                for cell in body
+                when (eq key (car cell))
+                  collect (cdr cell))))
+    (destructuring-bind (point-size xres yres) (getprop 'size)
+      (destructuring-bind (bb-width bb-height bb-off) (getprop 'fontboundingbox)
+        (make-instance 'font
+          :bdf-version     bdf-version
+          :content-version (getprop  'content-version)
+          :name            (getprop  'font)
+          :comments        (getprop* 'comment)
+          :properties      (getprop* 'property)
+          :point-size      point-size
+          :x-resolution    xres
+          :y-resolution    yres
+          :direction       (ecase (getprop 'metricsset)
+                             ((0 nil) :horizontal)
+                             ((1)     :vertical)
+                             ((2)     :both))
+          :metrics         (make-instance 'metrics
+                             :bounding-box    (make-bounding-box bb-width bb-height bb-off)
+                             :scalable-width  (getprop 'swidth)
+                             :scalable-height (getprop 'swidth1)
+                             :device-width    (getprop 'dwidth)
+                             :device-height   (getprop 'dwidth1)
+                             :vvector         (getprop 'vvector))
+          :glyphs          (getprop  'chars))))))
 
 (define-parser *bdf-parser*
   (:start-symbol bdf)
@@ -132,5 +148,5 @@
   (charprop-lines    (charprop-line   charprop-lines    #'list*)  ())
   (hex-lines         (hex-line        hex-lines         #'list*)  ()))
 
-(defun bdf-parse (stream)
+(defun parse (stream)
   (parse-with-lexer (bdf-lexer stream) *bdf-parser*))
