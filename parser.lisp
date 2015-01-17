@@ -139,7 +139,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
   (defmacro delay (f)
-    (let ((args (gensym "-ARGS")))
+    (let ((args (gensym "ARGS-")))
       `(function (lambda (&rest ,args)
                    (apply ,f ,args)))))
 
