@@ -51,48 +51,81 @@
 
 ;;;; Parsing
 
+(defun getprop (key body)
+  (cdr (assoc key body)))
+
+(defun getprop* (key body)
+  (loop
+     for cell in body
+     when (eq key (car cell))
+       collect (cdr cell)))
+
 (defun parse-bdf (bdf-version body endfont)
   (declare (ignore endfont))
-  (labels ((getprop (key)
-             (cdr (assoc key body)))
-           (getprop* (key)
-             (loop
-                for cell in body
-                when (eq key (car cell))
-                  collect (cdr cell))))
-    (destructuring-bind (point-size xres yres) (getprop 'size)
-      (destructuring-bind (bb-width bb-height bb-off) (getprop 'fontboundingbox)
-        (make-instance 'font
-          :bdf-version     bdf-version
-          :content-version (getprop  'content-version)
-          :name            (getprop  'font)
-          :comments        (getprop* 'comment)
-          :properties      (getprop* 'property)
-          :point-size      point-size
-          :x-resolution    xres
-          :y-resolution    yres
-          :direction       (ecase (getprop 'metricsset)
-                             ((0 nil) :horizontal)
-                             ((1)     :vertical)
-                             ((2)     :both))
-          :metrics         (make-instance 'metrics
-                             :bounding-box    (make-bounding-box bb-width bb-height bb-off)
-                             :scalable-width  (getprop 'swidth)
-                             :scalable-height (getprop 'swidth1)
-                             :device-width    (getprop 'dwidth)
-                             :device-height   (getprop 'dwidth1)
-                             :vvector         (getprop 'vvector))
-          :glyphs          (getprop  'chars))))))
+  (destructuring-bind (point-size xres yres) (getprop 'size body)
+    (destructuring-bind (bb-width bb-height bb-off) (getprop 'fontboundingbox body)
+      (make-instance 'font
+        :bdf-version     bdf-version
+        :content-version (getprop  'content-version body)
+        :name            (getprop  'font            body)
+        :comments        (getprop* 'comment         body)
+        :properties      (getprop  'properties      body)
+        :point-size      point-size
+        :x-resolution    xres
+        :y-resolution    yres
+        :direction       (ecase (getprop 'metricsset body)
+                           ((0 nil) :horizontal)
+                           ((1)     :vertical)
+                           ((2)     :both))
+        :metrics         (make-instance 'metrics
+                           :bounding-box    (make-bounding-box bb-width bb-height bb-off)
+                           :scalable-width  (getprop 'swidth  body)
+                           :scalable-height (getprop 'swidth1 body)
+                           :device-width    (getprop 'dwidth  body)
+                           :device-height   (getprop 'dwidth1 body)
+                           :vvector         (getprop 'vvector body))
+        :glyphs          (getprop  'chars body)))))
+
+(defun parse-properties (n properties endproperties)
+  (declare (ignore endproperties))
+  (when (/= n (length properties))
+    (warn "Unexpected number of properties"))
+  properties)
+
+(defun parse-chars (n chars)
+  (when (/= n (length chars))
+    (warn "Unexpected number of glyphs"))
+  chars)
+
+(defun parse-startchar (name body endchar)
+  (declare (ignore endchar))
+  (destructuring-bind (encoding standardp) (getprop 'encoding body)
+    (make-instance 'glyph
+      :name              name
+      :encoding          encoding
+      :standard-encoding standardp
+      :metrics           (make-instance 'metrics
+                           :bounding-box    (getprop 'bbx     body)
+                           :scalable-width  (getprop 'swidth  body)
+                           :scalable-height (getprop 'swidth1 body)
+                           :device-width    (getprop 'dwidth  body)
+                           :device-height   (getprop 'dwidth1 body)
+                           :vvector         (getprop 'vvector body))
+      :bitmap            (getprop 'bitmap body))))
+
+(defun parse-bitmap (start data)
+  (declare (ignore start))
+  (coerce data 'vector))
 
 (define-parser *bdf-parser*
   (:start-symbol bdf)
   (:terminals #.(list* :newline :string +keywords+))
 
-  (bdf               (startfont-line       global-lines     endfont-line        #'*list-drop))
-  (properties-block  (startproperties-line property-lines   endproperties-line  #'*list-drop))
-  (chars-block       (chars-line           startchar-blocks                     #'*list))
-  (startchar-block   (startchar-line       charprop-lines   endchar-line        #'*list-drop))
-  (bitmap-block      (bitmap-line          hex-lines                            #'*list))
+  (bdf               (startfont-line       global-lines     endfont-line        #'parse-bdf))
+  (properties-block  (startproperties-line property-lines   endproperties-line  #'parse-properties))
+  (chars-block       (chars-line           startchar-blocks                     #'parse-chars))
+  (startchar-block   (startchar-line       charprop-lines   endchar-line        #'parse-startchar))
+  (bitmap-block      (bitmap-line          hex-lines                            #'parse-bitmap))
 
   (startfont-line        (STARTFONT       :string                         :newline  #'droplast))
   (endfont-line          (ENDFONT                                         :newline  #'droplast))
