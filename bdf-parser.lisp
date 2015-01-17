@@ -102,28 +102,28 @@
   (bitmap-line           (BITMAP                                          :newline  #'droplast))
   (hex-line              (:string                                         :newline  #'first*))
 
-  (global-line   comment-line
-                 contentversion-line
-                 font-line
-                 size-line
-                 fontboundingbox-line
-                 metricsset-line
-                 swidth-line
-                 dwidth-line
-                 swidth1-line
-                 dwidth1-line
-                 vvector-line
-                 properties-block
-                 chars-block)
+  (global-line  comment-line
+                contentversion-line
+                font-line
+                size-line
+                fontboundingbox-line
+                metricsset-line
+                swidth-line
+                dwidth-line
+                swidth1-line
+                dwidth1-line
+                vvector-line
+                properties-block
+                chars-block)
 
-  (charprop-line    encoding-line
-                    swidth-line
-                    dwidth-line
-                    swidth1-line
-                    dwidth1-line
-                    vvector-line
-                    bbx-line
-                    bitmap-block)
+  (charprop-line  encoding-line
+                  swidth-line
+                  dwidth-line
+                  swidth1-line
+                  dwidth1-line
+                  vvector-line
+                  bbx-line
+                  bitmap-block)
 
   (global-lines      (global-line     global-lines      #'list*)  ())
   (property-lines    (property-line   property-lines    #'list*)  ())
