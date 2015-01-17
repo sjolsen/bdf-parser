@@ -1,121 +1,60 @@
 (in-package #:bdf-parser)
 
+(defmacro define-typed-struct (name &body members)
+  (labels ((slot-definition (spec)
+             (destructuring-bind (name type) spec
+               `(,name :type     ,type
+                       :initarg  ,(intern (symbol-name name) "KEYWORD")
+                       :accessor ,name))))
+    `(defclass ,name ()
+       ,(mapcar #'slot-definition members))))
+
 (deftype direction ()
   '(member :horizontal :vertical :both))
 
 (deftype maybe (type)
   `(or ,type null))
 
-(defclass offset ()
-  ((x-offset :type     integer
-             :initarg  :x-offset
-             :accessor x-offset)
-   (y-offset :type     integer
-             :initarg  :y-offset
-             :accessor y-offset)))
+(define-typed-struct offset
+  (x-offset integer)
+  (y-offset integer))
 
-(defclass bounding-box ()
-  ((width  :type     integer
-           :initarg  :width
-           :accessor width)
-   (height :type     integer
-           :initarg  :height
-           :accessor height)
-   (offset :type     offset
-           :initarg  :offset
-           :accessor offset)))
+(define-typed-struct bounding-box
+  (width  integer)
+  (height integer)
+  (offset offset))
 
-(defclass property ()
-  ((name  :type     string
-          :initarg  :name
-          :accessor name)
-   (value :type     string
-          :initarg  :value
-          :accessor value)))
+(define-typed-struct property
+  (name  string)
+  (value string))
 
-(defclass metrics ()
-  ((bounding-box :type     bounding-box
-                 :initarg  :bounding-box
-                 :accessor bounding-box)
+(define-typed-struct metrics
+  (bounding-box           bounding-box)
+  (scalable-step          (maybe offset))
+  (device-step            (maybe offset))
+  (scalable-step-vertical (maybe offset))
+  (device-step-vertical   (maybe offset))
+  (vvector                (maybe offset)))
 
-   (scalable-step          :type (maybe offset)
-                           :initarg :scalable-step
-                           :accessor scalable-step)
-   (device-step            :type (maybe offset)
-                           :initarg :device-step
-                           :accessor device-step)
-   (scalable-step-vertical :type (maybe offset)
-                           :initarg :scalable-step-vertical
-                           :accessor scalable-step-vertical)
-   (device-step-vertical   :type (maybe offset)
-                           :initarg :device-step-vertical
-                           :accessor device-step-vertical)
+(define-typed-struct glyph
+  (name              string)
+  (encoding          integer)
+  (standard-encoding boolean)
+  (metrics           metrics)
+  (bitmap            (array bit (* *))))
 
-   (vvector :type     (maybe offset)
-            :initarg  :vvector
-            :accessor vvector)))
-
-(defclass glyph ()
-  ((name :type     string
-         :initarg  :name
-         :accessor name)
-
-   (encoding          :type     integer
-                      :initarg  :encoding
-                      :accessor encoding)
-   (standard-encoding :type     boolean
-                      :initarg  :standard-encoding
-                      :accessor standard-encoding)
-
-   (metrics :type     metrics
-            :initarg  :metrics
-            :accessor metrics)
-
-   (bitmap :type     (array bit (* *))
-           :initarg  :bitmap
-           :accessor bitmap)))
-
-(defclass font ()
-  ((bdf-version     :type     string
-                    :initarg  :bdf-version
-                    :accessor bdf-version)
-   (content-version :type     (maybe string)
-                    :initarg  :content-version
-                    :accessor content-version)
-
-   (name :type     string
-         :initarg  :name
-         :accessor name)
-
-   (comments   :type     list
-               :initarg  :comments
-               :accessor comments)
-   (properties :type     list
-               :initarg  :properties
-               :accessor properties)
-
-   (point-size   :type     integer
-                 :initarg  :point-size
-                 :accessor point-size)
-   (x-resolution :type     integer
-                 :initarg  :x-resolution
-                 :accessor x-resolution)
-   (y-resoltuion :type     integer
-                 :initarg  :y-resolution
-                 :accessor y-resoltuion)
-
-   (direction :type     direction
-              :initarg  :direction
-              :initform :horizontal
-              :accessor direction)
-
-   (metrics :type     metrics
-            :initarg  :metrics
-            :accessor metrics)
-
-   (glyphs :type     (vector glyph)
-           :initarg  :glyphs
-           :accessor glyphs)))
+(define-typed-struct font
+  (bdf-version     string)
+  (content-version (maybe string))
+  (name            string)
+  (comments        list)
+  (properties      list)
+  (point-size      integer)
+  (x-resolution    integer)
+  (y-resolution    integer)
+  (direction       direction)
+  (metrics         metrics)
+  (glyphs          (vector glyph)))
 
 (defun make-offset (x-offset y-offset)
   (make-instance 'offset
