@@ -38,20 +38,33 @@
                  :initarg  :bounding-box
                  :accessor bounding-box)
 
-   (scalable-width  :type     integer
+   (scalable-width  :type     (maybe integer)
                     :initarg  :scalable-width
                     :accessor scalable-width)
-   (scalable-height :type     integer
+   (scalable-height :type     (maybe integer)
                     :initarg  :scalable-height
                     :accessor scalable-height)
-   (device-width    :type     integer
+   (device-width    :type     (maybe integer)
                     :initarg  :device-width
                     :accessor device-width)
-   (device-height   :type     integer
+   (device-height   :type     (maybe integer)
                     :initarg  :device-height
                     :accessor device-height)
 
-   (vvector :type     offset
+   (scalable-width-vertical  :type     (maybe integer)
+                             :initarg  :scalable-width-vertical
+                             :accessor scalable-width-vertical)
+   (scalable-height-vertical :type     (maybe integer)
+                             :initarg  :scalable-height-vertical
+                             :accessor scalable-height-vertical)
+   (device-width-vertical    :type     (maybe integer)
+                             :initarg  :device-width-vertical
+                             :accessor device-width-vertical)
+   (device-height-vertical   :type     (maybe integer)
+                             :initarg  :device-height-vertical
+                             :accessor device-height-vertical)
+
+   (vvector :type     (maybe offset)
             :initarg  :vvector
             :accessor vvector)))
 
@@ -127,6 +140,12 @@
     :width  width
     :height height
     :offset offset))
+
+(defun make-bounding-box* (width height x-offset y-offset)
+  (make-instance 'bounding-box
+    :width  width
+    :height height
+    :offset (make-offset x-offset y-offset)))
 
 (defun make-property (name value)
   (make-instance 'property
